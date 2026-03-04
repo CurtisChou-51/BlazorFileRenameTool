@@ -1,0 +1,337 @@
+﻿@page "/"
+@using FileRenameTool.Models
+@using FileRenameTool.Services
+@inject FileProcessingService FileService
+@inject ConfigStorageService ConfigService
+@rendermode InteractiveServer
+
+<PageTitle>批次檔案重新命名工具</PageTitle>
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h2>批次檔案重新命名與移動</h2>
+            <p class="text-muted">利用 C# Snippet 動態設定檔名與路徑規劃</p>
+        </div>
+    </div>
+
+    <!-- 儲存/載入設定區塊 -->
+    <div class="card mb-3 shadow-sm border-info">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="col-form-label fw-bold">設定檔方案：</label>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" @bind="SelectedConfigName">
+                        <option value="">-- 選擇設定檔方案 --</option>
+                        @foreach (var name in SavedConfigs.Keys)
+                        {
+                            <option value="@name">@name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="LoadConfig" disabled="@string.IsNullOrEmpty(SelectedConfigName)">讀取</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="DeleteConfig" disabled="@string.IsNullOrEmpty(SelectedConfigName)">刪除</button>
+                </div>
+                <div class="col-auto ms-auto d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" @bind="NewConfigName" placeholder="輸入方案名稱儲存..." style="width: 200px;" />
+                    <button class="btn btn-sm btn-primary" @onclick="SaveConfig" disabled="@string.IsNullOrWhiteSpace(NewConfigName)">儲存目前設定</button>
+                </div>
+            </div>
+            <div class="text-success small mt-2">
+                @(string.IsNullOrEmpty(ConfigMessage) ? "-" : ConfigMessage)
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定區塊 -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <div class="row g-3 align-items-end mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">來源資料夾路徑</label>
+                    <input type="text" class="form-control" @bind="Config.SrcDirectoryPath" placeholder="例如: D:\my-files" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">目標資料夾路徑 (選填，若空白則使用來源)</label>
+                    <input type="text" class="form-control" @bind="Config.DestDirectoryPath" placeholder="例如: D:\my-files-renamed" />
+                </div>
+            </div>
+            <div class="row g-3 align-items-end mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">搜尋條件 (Search Pattern)</label>
+                    <input type="text" class="form-control" @bind="Config.SearchPattern" placeholder="例如: * 或 *.txt" />
+                </div>
+                <div class="col-md-6 pb-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="recursiveCheck" @bind="Config.IsRecursive">
+                        <label class="form-check-label" for="recursiveCheck">包含子資料夾 (遞迴掃描)</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-3 align-items-end mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">檔名正規表示式篩選 (Regex Filter)</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" @bind="Config.FileNameRegex" placeholder="選填，例如: ^[A-Za-z0-9]{16}$" />
+                        <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><button class="dropdown-item" type="button" @onclick='@(() => Config.FileNameRegex = "^[A-Za-z0-9]{16}$")'>16碼英數字 ^[A-Za-z0-9]{16}$</button></li>
+                            <li><button class="dropdown-item" type="button" @onclick='@(() => Config.FileNameRegex = "^[0-9]+$")'>僅包含數字 ^[0-9]+$</button></li>
+                            <li><button class="dropdown-item" type="button" @onclick='@(() => Config.FileNameRegex = "^[A-Za-z]+$")'>僅包含英文 ^[A-Za-z]+$</button></li>
+                            <li><button class="dropdown-item" type="button" @onclick='@(() => Config.FileNameRegex = ".*_.*")'>包含底線 .*_.*</button></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-end mb-3">
+                <div class="col-md-12">
+                    <label class="form-label d-block">規則定義 (用反斜線組合)</label>
+                    <button class="btn btn-sm btn-outline-primary" type="button" @onclick="@(() => Config.RuleSegments.Insert(Config.RuleSegments.Count - 1, ""))">+ 增加節點</button>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        @for (int i = 0; i < Config.RuleSegments.Count; i++)
+                        {
+                            var currentIndex = i;
+                            <div class="input-group input-group-sm" style="width: auto; flex-wrap: nowrap;">
+                                <input type="text" class="form-control font-monospace" style="min-width: 150px;" @bind="Config.RuleSegments[currentIndex]" @bind:event="oninput" placeholder="資料夾或檔名" />
+                                <button class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false"></button>
+                                <ul class="dropdown-menu">
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{RelativePath}")">相對路徑 {RelativePath}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{FileName}")">原檔名 {FileName}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{Extension}")">副檔名 {Extension}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{yyyyMMdd}")">建立日期 {yyyyMMdd}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{yyyyMM}")">建立年月 {yyyyMM}</button></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{FileName.Split('_')[0]}")">底線拆分取首段</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{FileName.Substring(0, 3)}")">取前三字元</button></li>
+                                </ul>
+                                <button class="btn btn-outline-danger" type="button" @onclick="@(() => Config.RuleSegments.RemoveAt(currentIndex))" title="移除此節點">X</button>
+                            </div>
+                            @if (i < Config.RuleSegments.Count - 1)
+                            {
+                                <span class="text-muted fw-bold"> \ </span>
+                            }
+                        }
+                    </div>
+                    <div class="form-text text-primary font-monospace mt-1">
+                        <strong>目前完整 Pattern:</strong> @Config.RulePattern
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-10 d-grid"></div>
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-primary" @onclick="ScanDirectory" disabled="@IsScanning">
+                        @if (IsScanning)
+                        {
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span>掃描中...</span>
+                        }
+                        else
+                        {
+                            <span>掃描與預覽</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 預覽清單區塊 -->
+    @if (FileList != null && FileList.Any())
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4>檔案預覽 (<span class="text-primary">@FileList.Count</span> 筆)</h4>
+            <button class="btn btn-success px-4" @onclick="ExecuteRename" disabled="@IsExecuting">
+                @if (IsExecuting)
+                {
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    <span>執行中...</span>
+                }
+                else
+                {
+                    <span>🚀 確認執行變更</span>
+                }
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ExecuteMessage))
+        {
+            <div class="alert alert-info">
+                @ExecuteMessage
+            </div>
+        }
+
+        <div class="table-responsive shadow-sm h-100">
+            <table class="table table-hover table-bordered align-middle table-sm">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 40%">原始檔名</th>
+                        <th style="width: 45%">目標新檔名 (預覽)</th>
+                        <th style="width: 15%">狀態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var file in FileList)
+                    {
+                        <tr class="@GetRowClass(file.Status)">
+                            <td>
+                                <div class="text-truncate" style="max-width: 400px;" title="@file.OriginalPath">
+                                    @file.OriginalPath
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-truncate fw-bold text-success" style="max-width: 450px;" title="@file.NewFileName">
+                                    @file.NewFileName
+                                </div>
+                                @if (!string.IsNullOrEmpty(file.ErrorMessage))
+                                {
+                                    <div class="text-danger small mt-1">@file.ErrorMessage</div>
+                                }
+                            </td>
+                            <td>
+                                @switch(file.Status)
+                                {
+                                    case "Pending": <span class="badge bg-secondary">等待執行</span>; break;
+                                    case "Success": <span class="badge bg-success">成功</span>; break;
+                                    case "Error": <span class="badge bg-danger">發生錯誤</span>; break;
+                                    default: <span>@file.Status</span>; break;
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private RenameConfigModel Config { get; set; } = new()
+    {
+        SrcDirectoryPath = @"D:\file-rename\TestFiles",
+        RuleSegments = ["{yyyyMM}", "{RelativePath}", "{FileName}{Extension}"]
+    };
+
+    private Dictionary<string, RenameConfigModel> SavedConfigs { get; set; } = new();
+    private string SelectedConfigName { get; set; } = string.Empty;
+    private string NewConfigName { get; set; } = string.Empty;
+    private string ConfigMessage { get; set; } = string.Empty;
+
+    private List<FileItemModel> FileList { get; set; } = new();
+
+    private bool IsScanning { get; set; } = false;
+    private bool IsExecuting { get; set; } = false;
+    private string ExecuteMessage { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshConfigList();
+    }
+
+    private async Task RefreshConfigList()
+    {
+        SavedConfigs = await ConfigService.LoadConfigsAsync();
+    }
+
+    private void LoadConfig()
+    {
+        if (!string.IsNullOrEmpty(SelectedConfigName) && SavedConfigs.TryGetValue(SelectedConfigName, out var loadedConfig))
+        {
+            Config = loadedConfig;
+            NewConfigName = SelectedConfigName;
+            FileList.Clear(); // 清空目前的預覽
+            _ = ClearMessageDelay($"已成功載入方案 '{SelectedConfigName}'");
+        }
+    }
+
+    private async Task SaveConfig()
+    {
+        if (!string.IsNullOrWhiteSpace(NewConfigName))
+        {
+            await ConfigService.SaveConfigAsync(NewConfigName, Config);
+            await RefreshConfigList();
+            SelectedConfigName = NewConfigName;
+            _ = ClearMessageDelay($"設定已儲存為 '{NewConfigName}'");
+        }
+    }
+
+    private async Task DeleteConfig()
+    {
+        if (!string.IsNullOrEmpty(SelectedConfigName))
+        {
+            await ConfigService.DeleteConfigAsync(SelectedConfigName);
+            await RefreshConfigList();
+            SelectedConfigName = string.Empty;
+            _ = ClearMessageDelay($"已刪除方案 '{SelectedConfigName}'");
+        }
+    }
+
+    private async Task ClearMessageDelay(string msg)
+    {
+        ConfigMessage = msg;
+        await Task.Delay(3000);
+        ConfigMessage = string.Empty;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ScanDirectory()
+    {
+        if (string.IsNullOrWhiteSpace(Config.SrcDirectoryPath) || string.IsNullOrWhiteSpace(Config.RulePattern))
+            return;
+
+        IsScanning = true;
+        ExecuteMessage = "";
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield(); // 確保讓出執行緒，Renderer 可以把變更推給 client
+
+        try
+        {
+            // 動態傳入資料夾路徑與規則，重新推算最新預覽
+            FileList = await FileService.ScanDirectoryAsync(Config.SrcDirectoryPath, Config.RulePattern, Config.SearchPattern, Config.IsRecursive, Config.FileNameRegex);
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    private async Task ExecuteRename()
+    {
+        if (FileList == null || !FileList.Any() || string.IsNullOrWhiteSpace(Config.DestDirectoryPath))
+            return;
+
+        IsExecuting = true;
+        ExecuteMessage = "";
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield(); // 確保讓出執行緒，Renderer 可以把變更推給 client
+
+        try
+        {
+            // 透過 Task.Run 避免同步的 File API 完全卡死 Blazor UI 執行緒
+            await Task.Run(() => FileService.ExecuteRename(FileList, Config.DestDirectoryPath));
+            int successCount = FileList.Count(x => x.Status == "Success");
+            int errorCount = FileList.Count(x => x.Status == "Error");
+            ExecuteMessage = $"執行完成! 成功: {successCount}, 失敗: {errorCount}";
+        }
+        finally
+        {
+            IsExecuting = false;
+        }
+    }
+
+    private string GetRowClass(string status)
+    {
+        return status switch
+        {
+            "Success" => "table-success",
+            "Error" => "table-danger",
+            _ => ""
+        };
+    }
+}
