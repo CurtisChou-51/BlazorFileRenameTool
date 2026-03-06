@@ -103,8 +103,10 @@
                                     <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{RelativePath}")">相對路徑 {RelativePath}</button></li>
                                     <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{FileName}")">原檔名 {FileName}</button></li>
                                     <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{Extension}")">副檔名 {Extension}</button></li>
-                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{yyyyMMdd}")">建立日期 {yyyyMMdd}</button></li>
-                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{yyyyMM}")">建立年月 {yyyyMM}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{Creation_yyyyMMdd}")">建立日期 {Creation_yyyyMMdd}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{Creation_yyyyMM}")">建立年月 {Creation_yyyyMM}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{LastWrite_yyyyMMdd}")">修改日期 {LastWrite_yyyyMMdd}</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{LastWrite_yyyyMM}")">修改年月 {LastWrite_yyyyMM}</button></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{FileName.Split('_')[0]}")">底線拆分取首段</button></li>
                                     <li><button class="dropdown-item" type="button" @onclick="@(() => Config.RuleSegments[currentIndex] += "{FileName.Substring(0, 3)}")">取前三字元</button></li>
@@ -215,7 +217,7 @@
     private RenameConfigModel Config { get; set; } = new()
     {
         SrcDirectoryPath = @"D:\file-rename\TestFiles",
-        RuleSegments = ["{yyyyMM}", "{RelativePath}", "{FileName}{Extension}"]
+        RuleSegments = ["{LastWrite_yyyyMM}", "{RelativePath}", "{FileName}{Extension}"]
     };
 
     private Dictionary<string, RenameConfigModel> SavedConfigs { get; set; } = new();

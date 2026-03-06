@@ -8,12 +8,12 @@ namespace FileRenameTool.Models
         public string Extension { get; set; } = string.Empty;
         public DateTime CreationTime { get; set; }
         public DateTime LastWriteTime { get; set; }
+        public string RelativePath { get; set; } = string.Empty;
 
         // Provide shortcut format for common use cases
-        public string yyyyMMdd => CreationTime.ToString("yyyyMMdd");
-        public string yyyyMM => CreationTime.ToString("yyyyMM");
-
-        // The relative path from the scanned root directory
-        public string RelativePath { get; set; } = string.Empty;
+        public string Creation_yyyyMMdd => CreationTime.ToString("yyyyMMdd");
+        public string Creation_yyyyMM => CreationTime.ToString("yyyyMM");
+        public string LastWrite_yyyyMMdd => LastWriteTime.ToString("yyyyMMdd");
+        public string LastWrite_yyyyMM => LastWriteTime.ToString("yyyyMM");
     }
 }
