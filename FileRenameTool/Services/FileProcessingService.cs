@@ -54,7 +54,8 @@ namespace FileRenameTool.Services
                 }
                 try
                 {
-                    model.NewFileName = (await compiledFunc(model.ToContext())).Replace(@"\\", @"\");
+                    var evaluated = await compiledFunc(model.ToContext());
+                    model.NewFileName = Regex.Replace(evaluated, @"\\{2,}", "\\");  // 將連續兩個或以上的反斜線合併為單一反斜線
                 }
                 catch (System.Exception ex)
                 {
