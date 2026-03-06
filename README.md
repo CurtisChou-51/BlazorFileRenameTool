@@ -17,8 +17,10 @@
     - `{RelativePath}`：相對路徑
     - `{FileName}`：原檔名
     - `{Extension}`：副檔名
-    - `{yyyyMMdd}`：建立日期
-    - `{yyyyMM}`：建立年月
+    - `{Creation_yyyyMMdd}`：建立日期
+    - `{Creation_yyyyMM}`：建立年月
+    - `{LastWrite_yyyyMMdd}`：修改日期
+    - `{LastWrite_yyyyMM}`：修改年月
     - `{FileName.Split('_')[0]}`：底線拆分取首段
     - `{FileName.Substring(0, 3)}`：取前三字元
 
@@ -45,12 +47,12 @@
 ## 範例
 
 ### 依建立年月歸檔（本專案預設）
-- 本專案預設提供的 Pattern 能將選擇的檔案依照檔案建立年月動態分類到子資料夾中
-  - `{yyyyMM}`：會動態解析為檔案建立的西元年與月份（例如：`202310`），作為最外層分類資料夾。
+- 本專案預設提供的 Pattern 能將選擇的檔案依照檔案最後修改年月動態分類到子資料夾中
+  - `{LastWrite_yyyyMM}`：會動態解析為檔案最後修改的西元年與月份（例如：`202310`），作為最外層分類資料夾。
   - `{RelativePath}`：保留從掃描來源取得的原始相對目錄結構。
   - `{FileName}{Extension}`：保留原本的檔名與副檔名。
 ```csharp
-{yyyyMM}\{RelativePath}\{FileName}{Extension}
+{LastWrite_yyyyMM}\{RelativePath}\{FileName}{Extension}
 ```
 
 ### FlattenFilesToRoot
