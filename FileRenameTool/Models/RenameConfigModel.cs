@@ -8,6 +8,7 @@ namespace FileRenameTool.Models
         public string DestDirectoryPath { get; set; } = string.Empty;
         public string SearchPattern { get; set; } = "*";
         public bool IsRecursive { get; set; } = false;
+        public bool IsCopyMode { get; set; } = false;
         public string FileNameRegex { get; set; } = string.Empty;
         public List<string> RuleSegments { get; set; } = [];
         

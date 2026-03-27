@@ -64,10 +64,16 @@
                     <label class="form-label">搜尋條件 (Search Pattern)</label>
                     <input type="text" class="form-control" @bind="Config.SearchPattern" placeholder="例如: * 或 *.txt" />
                 </div>
-                <div class="col-md-6 pb-2">
+                <div class="col-md-3 pb-2">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="recursiveCheck" @bind="Config.IsRecursive">
                         <label class="form-check-label" for="recursiveCheck">包含子資料夾 (遞迴掃描)</label>
+                    </div>
+                </div>
+                <div class="col-md-3 pb-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="copyModeCheck" @bind="Config.IsCopyMode">
+                        <label class="form-check-label" for="copyModeCheck">複製模式 (不刪除原檔)</label>
                     </div>
                 </div>
             </div>
@@ -316,7 +322,7 @@
         try
         {
             // 透過 Task.Run 避免同步的 File API 完全卡死 Blazor UI 執行緒
-            await Task.Run(() => FileService.ExecuteRename(FileList, Config.DestDirectoryPath));
+            await Task.Run(() => FileService.ExecuteRename(FileList, Config.DestDirectoryPath, Config.IsCopyMode));
             int successCount = FileList.Count(x => x.Status == "Success");
             int errorCount = FileList.Count(x => x.Status == "Error");
             ExecuteMessage = $"執行完成! 成功: {successCount}, 失敗: {errorCount}";

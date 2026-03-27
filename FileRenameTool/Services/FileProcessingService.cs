@@ -67,7 +67,7 @@ namespace FileRenameTool.Services
             return results;
         }
 
-        public void ExecuteRename(List<FileItemModel> items, string destDirectoryPath)
+        public void ExecuteRename(List<FileItemModel> items, string destDirectoryPath, bool isCopyMode = false)
         {
             if (!Directory.Exists(destDirectoryPath))
                 Directory.CreateDirectory(destDirectoryPath);
@@ -93,15 +93,17 @@ namespace FileRenameTool.Services
                     int counter = 1;
                     string fileNameOnly = Path.GetFileNameWithoutExtension(destPath);
                     string extension = Path.GetExtension(destPath);
-                    string originalDestPath = destPath;
 
                     while (File.Exists(destPath))
                     {
                         destPath = Path.Combine(destDir ?? "", $"{fileNameOnly}_{counter++}{extension}");
                     }
 
-                    File.Move(item.OriginalPath, destPath);
-                    
+                    if (isCopyMode)
+                        File.Copy(item.OriginalPath, destPath);
+                    else
+                        File.Move(item.OriginalPath, destPath);
+
                     item.Status = "Success";
                     item.OriginalPath = destPath;
                     item.OriginalFileName = Path.GetFileName(destPath);
