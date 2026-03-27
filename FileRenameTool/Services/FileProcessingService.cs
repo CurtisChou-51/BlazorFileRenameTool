@@ -1,8 +1,5 @@
 ﻿using FileRenameTool.Models;
-using System.Collections.Generic;
-using System.IO;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace FileRenameTool.Services
 {
@@ -17,26 +14,26 @@ namespace FileRenameTool.Services
             _ruleCache = ruleCache;
         }
 
-        public async Task<List<FileItemModel>> ScanDirectoryAsync(string srcDirectoryPath, string rulePattern, string searchPattern = "*", bool recursive = false, string? fileNameRegex = null)
+        public async Task<List<FileItemModel>> ScanDirectoryAsync(ScanOptionsModel options)
         {
             var results = new List<FileItemModel>();
-            if (!Directory.Exists(srcDirectoryPath))
+            if (!Directory.Exists(options.SrcDirectoryPath))
                 return results;
 
             // 預先編譯 Pattern 提升批次效能，並加入快取機制
             var compiledFunc = _ruleCache.GetOrAdd(
-                rulePattern,
+                options.RulePattern,
                 pattern => _ruleEngine.CompileRulePattern(pattern));
 
-            var options = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-            var files = Directory.GetFiles(srcDirectoryPath, searchPattern, options);
+            SearchOption searchOptions = options.IsRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            string[] files = Directory.GetFiles(options.SrcDirectoryPath, options.SearchPattern, searchOptions);
             
             Regex? regex = null;
-            if (!string.IsNullOrWhiteSpace(fileNameRegex))
+            if (!string.IsNullOrWhiteSpace(options.FileNameRegex))
             {
                 try
                 {
-                    regex = new Regex(fileNameRegex, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                    regex = new Regex(options.FileNameRegex, RegexOptions.IgnoreCase | RegexOptions.Compiled);
                 }
                 catch
                 {
@@ -46,7 +43,7 @@ namespace FileRenameTool.Services
 
             foreach (var file in files)
             {
-                var model = new FileItemModel(file, srcDirectoryPath);
+                var model = new FileItemModel(file, options.SrcDirectoryPath);
                 
                 if (regex != null && !regex.IsMatch(model.OriginalFileName))
                 {
@@ -57,7 +54,7 @@ namespace FileRenameTool.Services
                     var evaluated = await compiledFunc(model.ToContext());
                     model.NewFileName = Regex.Replace(evaluated, @"\\{2,}", "\\");  // 將連續兩個或以上的反斜線合併為單一反斜線
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     model.Status = "Error";
                     model.ErrorMessage = ex.Message;

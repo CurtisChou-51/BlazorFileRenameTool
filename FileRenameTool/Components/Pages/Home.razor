@@ -300,8 +300,16 @@
 
         try
         {
+            var options = new ScanOptionsModel
+            {
+                SrcDirectoryPath = Config.SrcDirectoryPath,
+                RulePattern = Config.RulePattern,
+                SearchPattern = Config.SearchPattern,
+                IsRecursive = Config.IsRecursive,
+                FileNameRegex = Config.FileNameRegex
+            };
             // 動態傳入資料夾路徑與規則，重新推算最新預覽
-            FileList = await FileService.ScanDirectoryAsync(Config.SrcDirectoryPath, Config.RulePattern, Config.SearchPattern, Config.IsRecursive, Config.FileNameRegex);
+            FileList = await FileService.ScanDirectoryAsync(options);
         }
         finally
         {
